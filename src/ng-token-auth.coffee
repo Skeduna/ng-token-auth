@@ -743,8 +743,16 @@ angular.module('ng-token-auth', ['ipCookie'])
     updateHeadersFromResponse = ($auth, resp) ->
       newHeaders = {}
       for key, val of $auth.getConfig().tokenFormat
+        # when using CORS, some versions of iOS remove non-standard response headers even when they are exposed.
+        # To work around, we temporarily add the auth data to the response body and then remove it.
         if resp.headers(key)
           newHeaders[key] = resp.headers(key)
+        else if resp.data.auth && resp.data.auth[key]
+          newHeaders[key] = resp.data.auth[key]
+
+        # remove temporary auth data from the response body.
+        if (resp.data.auth)
+          delete resp.data.auth
 
       if tokenIsCurrent($auth, newHeaders)
         $auth.setAuthHeaders(newHeaders)

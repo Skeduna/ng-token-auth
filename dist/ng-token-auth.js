@@ -662,6 +662,11 @@ angular.module('ng-token-auth', ['ipCookie']).provider('$auth', function() {
         val = _ref[key];
         if (resp.headers(key)) {
           newHeaders[key] = resp.headers(key);
+        } else if (resp.data.auth && resp.data.auth[key]) {
+          newHeaders[key] = resp.data.auth[key];
+        }
+        if (resp.data.auth) {
+          delete resp.data.auth;
         }
       }
       if (tokenIsCurrent($auth, newHeaders)) {
