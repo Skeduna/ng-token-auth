@@ -76,6 +76,7 @@ This project comes bundled with a test app. You can run the demo locally by foll
 * [Notes on Token Management](#about-token-management)
 * [Notes on Batch Requests](#about-batch-requests)
 * [Notes on Token Formatting](#identifying-users-on-the-server)
+* [iOS Caveats](#ios)
 * [Internet Explorer Caveats](#internet-explorer)
 * [FAQ](#faq)
 * [Development](#development)
@@ -99,12 +100,12 @@ Not using AngularJS? Use [jToker](https://github.com/lynndylanhurley/j-toker) in
 # Installation
 
 
-* Download this module and its dependencies:   
+* Download this module and its dependencies: 
   ~~~bash
   # from the terminal at the root of your project
   bower install ng-token-auth --save
   ~~~
-  
+
 * Ensure that [angularjs](https://github.com/angular/angular.js), [angular-cookie](https://github.com/ivpusic/angular-cookie), and ng-token-auth are included on your page: 
   ~~~html
   <!-- in your index.html file -->
@@ -112,7 +113,7 @@ Not using AngularJS? Use [jToker](https://github.com/lynndylanhurley/j-toker) in
   <script src="/js/angular-cookie/angular-cookie.js"></script>
   <script src="/js/ng-token-auth/dist/ng-token-auth.js"></script>
   ~~~
-  
+
 * Include `ng-token-auth` in your module's dependencies:
   ~~~javascript
   // in your js app's module definition
@@ -157,8 +158,10 @@ angular.module('myApp', ['ng-token-auth'])
       passwordResetSuccessUrl: window.location.href,
       emailSignInPath:         '/auth/sign_in',
       storage:                 'cookies',
+      forceValidateToken:      false,
       proxyIf:                 function() { return false; },
       proxyUrl:                '/proxy',
+      omniauthWindowType:      'sameWindow',
       authProviderPaths: {
         github:   '/auth/github',
         facebook: '/auth/facebook',
@@ -178,7 +181,7 @@ angular.module('myApp', ['ng-token-auth'])
       handleLoginResponse: function(response) {
         return response.data;
       },
-      handleAccountResponse: function(response) {
+      handleAccountUpdateResponse: function(response) {
         return response.data;
       },
       handleTokenValidationResponse: function(response) {
@@ -204,6 +207,7 @@ angular.module('myApp', ['ng-token-auth'])
 | **passwordUpdatePath** | path for submitting new passwords for authenticated users. [Read more](#password-reset-flow) |
 | **passwordResetSuccessUrl** | the URL to which the API should redirect after users visit the links contained in password-reset emails. [Read more](#password-reset-flow). |
 | **storage** | the method used to persist tokens between sessions. cookies are used by default, but `window.localStorage` can be used as well. A custom object can also be used. Allowed strings are `cookies` and `localStorage`, otherwise an object implementing the interface defined below|
+| **forceValidateToken** | if this flag is set, the API's token validation will be called even if the auth token is not saved in `storage`. This can be useful for implementing a single sign-on (SSO) system.|
 | **proxyIf** | older browsers have trouble with CORS ([read more](#internet-explorer)). pass a method here to determine whether or not a proxy should be used. example: `function() { return !Modernizr.cors }` |
 | **proxyUrl** | proxy url if proxy is to be used |
 | **tokenFormat** | a template for authentication tokens. the template will be provided a context with the following params:<br><ul><li>token</li><li>clientId</li><li>uid</li><li>expiry</li></ul>Defaults to the [RFC 6750 Bearer Token](http://tools.ietf.org/html/rfc6750) format. [Read more](#using-alternate-header-formats). |
@@ -211,6 +215,7 @@ angular.module('myApp', ['ng-token-auth'])
 | **handleLoginResponse** | a function that will identify and return the current user's info (id, username, etc.) in the response of a successful login request. [Read more](#using-alternate-response-formats). |
 | **handleAccountUpdateResponse** | a function that will identify and return the current user's info (id, username, etc.) in the response of a successful account update request. [Read more](#using-alternate-response-formats). |
 | **handleTokenValidationResponse** | a function that will identify and return the current user's info (id, username, etc.) in the response of a successful token validation request. [Read more](#using-alternate-response-formats). |
+| **omniauthWindowType** | Dictates the methodolgy of the OAuth login flow. One of: `sameWindow` (default), `newWindow`, `inAppBrowser` [Read more](#oauth2-authentication-flow). |
 
 #### Custom Storage Object
 Must implement the following interface:
@@ -226,7 +231,7 @@ Must implement the following interface:
 
 ## API
 
-The `$auth` module is available for dependency injection during your app's run phase (for controllers, directives, filters, etc.). Each API method returns a [$q deferred promise](https://docs.angularjs.org/api/ng/service/$q) that will be resolved on success, 
+The `$auth` module is available for dependency injection during your app's run phase (for controllers, directives, filters, etc.). Each API method returns a [$q deferred promise](https://docs.angularjs.org/api/ng/service/$q) that will be resolved on success,
 
 
 ###$auth.authenticate
@@ -236,7 +241,7 @@ Initiate an OAuth2 authentication. This method accepts 2 arguments:
   ~~~javascript
   $auth.authenticate('github')
   ~~~
-  
+
 * **options**: _(optional)_ an object containing the following params:
   *  **params**: additional params to be passed to the OAuth provider. For example, to pass the user's favorite color on sign up:
 
@@ -258,10 +263,10 @@ angular.module('ngTokenAuthTestApp')
   .controller('IndexCtrl', function($scope, $auth) {
     $scope.handleBtnClick = function() {
       $auth.authenticate('github')
-        .then(function(resp) { 
+        .then(function(resp) {
           // handle success
         })
-        .catch(function(resp) { 
+        .catch(function(resp) {
           // handle errors
         });
     };
@@ -353,10 +358,10 @@ angular.module('ngTokenAuthTestApp')
   .controller('IndexCtrl', function($scope, $auth) {
     $scope.handleRegBtnClick = function() {
       $auth.submitRegistration($scope.registrationForm)
-        .then(function(resp) { 
+        .then(function(resp) {
           // handle success response
         })
-        .catch(function(resp) { 
+        .catch(function(resp) {
           // handle error response
         });
     };
@@ -403,10 +408,10 @@ angular.module('ngTokenAuthTestApp')
   .controller('IndexCtrl', function($scope, $auth) {
     $scope.handleLoginBtnClick = function() {
       $auth.submitLogin($scope.loginForm)
-        .then(function(resp) { 
+        .then(function(resp) {
           // handle success response
         })
-        .catch(function(resp) { 
+        .catch(function(resp) {
           // handle error response
         });
     };
@@ -444,10 +449,10 @@ angular.module('ngTokenAuthTestApp')
   .controller('IndexCtrl', function($scope, $auth) {
     $scope.handleSignOutBtnClick = function() {
       $auth.signOut()
-        .then(function(resp) { 
+        .then(function(resp) {
           // handle success response
         })
-        .catch(function(resp) { 
+        .catch(function(resp) {
           // handle error response
         });
     };
@@ -475,10 +480,10 @@ angular.module('ngTokenAuthTestApp')
   .controller('IndexCtrl', function($scope, $auth) {
     $scope.handlePwdResetBtnClick = function() {
       $auth.requestPasswordReset($scope.pwdResetForm)
-        .then(function(resp) { 
+        .then(function(resp) {
           // handle success response
         })
-        .catch(function(resp) { 
+        .catch(function(resp) {
           // handle error response
         });
     };
@@ -500,10 +505,11 @@ angular.module('ngTokenAuthTestApp')
 ###$auth.updatePassword
 Change an authenticated user's password. This only applies to users that have registered using email. This method accepts an object with the following params:
 
+* **current_password**
 * **password**
 * **password_confirmation**
 
-The two params must match.
+The `password` and `password_confirmation` params must match. `current_password` param is optional - depends on the server configuration. It might be checked before password update.
 
 This method broadcasts the following events:
 
@@ -516,10 +522,10 @@ angular.module('ngTokenAuthTestApp')
   .controller('IndexCtrl', function($scope, $auth) {
     $scope.handleUpdatePasswordBtnClick = function() {
       $auth.updatePassword($scope.updatePasswordForm)
-        .then(function(resp) { 
+        .then(function(resp) {
           // handle success response
         })
-        .catch(function(resp) { 
+        .catch(function(resp) {
           // handle error response
         });
     };
@@ -544,7 +550,7 @@ angular.module('ngTokenAuthTestApp')
 ~~~
 
 ###$auth.updateAccount
-Change an authenticated user's account info. This method accepts an object that contains valid params for your API's user model. The following shows how to update a user's `zodiac_sign` param:
+Change an authenticated user's account info. This method accepts an object that contains valid params for your API's user model. When `password` and `password_confirmation` params are supported it updates the password as well. Depending on the server configuration `current_password` param might be needed. The following shows how to update a user's `zodiac_sign` param:
 
 ##### Example use in a template:
 ~~~html
@@ -571,10 +577,10 @@ angular.module('ngTokenAuthTestApp')
   .controller('IndexCtrl', function($scope, $auth) {
     $scope.handleUpdateAccountBtnClick = function() {
       $auth.updateAccount($scope.updateAccountForm)
-        .then(function(resp) { 
+        .then(function(resp) {
           // handle success response
         })
-        .catch(function(resp) { 
+        .catch(function(resp) {
           // handle error response
         });
     };
@@ -597,10 +603,10 @@ angular.module('ngTokenAuthTestApp')
   .controller('IndexCtrl', function($scope, $auth) {
     $scope.handleDestroyAccountBtnClick = function() {
       $auth.destroyAccount()
-        .then(function(resp) { 
+        .then(function(resp) {
           // handle success response
         })
-        .catch(function(resp) { 
+        .catch(function(resp) {
           // handle error response
         });
     };
@@ -616,7 +622,7 @@ angular.module('ngTokenAuthTestApp')
 
 ## Events
 
-This module broadcasts events after the success or failure of each API method. Using these events to build your app can result in more flexibility while reducing code spaghetti. 
+This module broadcasts events after the success or failure of each API method. Using these events to build your app can result in more flexibility while reducing code spaghetti.
 
 For example, any template can initiate an authentication, and any controller can subscribe to the `auth:login-success` event to provide success notifications, redirects, etc.
 
@@ -938,7 +944,7 @@ angular.module('myApp', ['ng-token-auth'])
       handleLoginResponse: function(response) {
         return response;
       },
-      
+
       handleAccountUpdateResponse: function(response) {
         return response;
       },
@@ -963,7 +969,7 @@ To set up an application for multiple users, pass an array of configuration obje
 ##### Multiple user configuration example
 ~~~javascript
 $authProvider.configure([
-  { 
+  {
     default: {
       apiUrl:  CONFIG.apiUrl,
       proxyIf: function() { window.isOldIE() },
@@ -972,7 +978,7 @@ $authProvider.configure([
         facebook:  '/auth/facebook',
         google:    '/auth/google_oauth2'
       }
-    }   
+    }
   }, {
     evilUser: {
       apiUrl:                CONFIG.apiUrl,
@@ -997,7 +1003,7 @@ $authProvider.configure([
 
 ### Multiple user type usage
 
-The following API methods accept a `config` option that can be used to specify the desired configuration. 
+The following API methods accept a `config` option that can be used to specify the desired configuration.
 
 * [`$auth.authenticate`](#authauthenticate)
 * [`$auth.validateUser`](#authvalidateuser)
@@ -1076,20 +1082,28 @@ The following diagram illustrates the steps necessary to authenticate a client u
 
 ![oauth flow](https://github.com/lynndylanhurley/ng-token-auth/raw/master/test/app/images/flow/omniauth-flow.jpg)
 
-When authenticating with a 3rd party provider, the following steps will take place.
+When authenticating with a 3rd party provider, the following steps will take place, assuming the backend server is configured appropriately. [devise token auth](https://github.com/lynndylanhurley/devise_token_auth) already accounts for these flows.
 
-1. An external window will be opened to the provider's authentication page.
-1. Once the user signs in, they will be redirected back to the API at the callback uri that was registered with the oauth2 provider.
-1. The API will send the user's info back to the client via `postMessage` event, and then close the external window.
+- `sameWindow` Mode
+  1. The existing window will be used to access the provider's authentication page.
+  2. Once the user signs in, they will be redirected back to the API using the same window, with the user and authentication tokens being set.
 
-The postMessage event must include the following a parameters:
+- `newWindow` Mode
+  1. An external window will be opened to the provider's authentication page.
+  2. Once the user signs in, they will be redirected back to the API at the callback uri that was registered with the oauth2 provider.
+  3. The API will send the user's info back to the client via `postMessage` event, and then close the external window.
+
+- `inAppBrowser` Mode
+  - This mode is virtually identical to the `newWindow` flow, except the flow varies slightly to account for limitations with the [Cordova inAppBrowser Plugin](https://github.com/apache/cordova-plugin-inappbrowser) and the `postMessage` API. Note: In order for this mode to work out of the box, inAppBrowser is assumed to be registered with any external window.open calls. eg - `window.open = window.cordova.InAppBrowser.open;`
+
+The `postMessage` event (utilized for both `newWindow` and `inAppBrowser` modes) must include the following a parameters:
 * **message** - this must contain the value `"deliverCredentials"`
 * **auth_token** - a unique token set by your server.
 * **uid** - the id that was returned by the provider. For example, the user's facebook id, twitter id, etc.
 
-Rails example: [controller](https://github.com/lynndylanhurley/ng-token-auth-api-rails/blob/master/app/controllers/users/auth_controller.rb#L21), [layout](https://github.com/lynndylanhurley/ng-token-auth-api-rails/blob/master/app/views/layouts/oauth_response.html.erb), [view](https://github.com/lynndylanhurley/ng-token-auth-api-rails/blob/master/app/views/users/auth/oauth_success.html.erb).
+Rails newWindow example: [controller](https://github.com/lynndylanhurley/ng-token-auth-api-rails/blob/master/app/controllers/users/auth_controller.rb#L21), [layout](https://github.com/lynndylanhurley/ng-token-auth-api-rails/blob/master/app/views/layouts/oauth_response.html.erb), [view](https://github.com/lynndylanhurley/ng-token-auth-api-rails/blob/master/app/views/users/auth/oauth_success.html.erb).
 
-##### Example redirect_uri destination:
+##### Example newWindow redirect_uri destination:
 
 ~~~html
 <!DOCTYPE html>
@@ -1216,6 +1230,10 @@ This will all happen automatically when using this module.
 
 **Note**: You can customize the auth headers however you like. [Read more](#using-alternate-header-formats).
 
+# iOS
+
+ * localStoage may not writable in Private Browsing mode. You may wish to configure `storage` to use a generic object store or temporary cookie store. See also: [Frustration](http://spin.atomicobject.com/2013/01/23/ios-private-browsing-localstorage/)
+
 # Internet Explorer
 
 Internet Explorer (8, 9, 10, & 11) present the following obstacles:
@@ -1276,16 +1294,15 @@ app.all('/proxy/*', function(req, res, next) {
 
 The above example assumes that you're using [express](http://expressjs.com/), [request](https://github.com/mikeal/request), and [http-proxy](https://github.com/nodejitsu/node-http-proxy), and that you have set the API_URL value using [node-config](https://github.com/lorenwest/node-config).
 
-#### IE8+ must use hard redirects for provider authentication
+#### IE8-11 / iOS 8.2 must use `sameWindow` for provider authentication
 
-Most modern browsers can communicate across tabs and windows using [postMessage](https://developer.mozilla.org/en-US/docs/Web/API/Window.postMessage). This doesn't work for certain flawed browsers. In these cases the client must take the following steps when performing provider authentication (facebook, github, etc.):
+Most modern browsers can communicate across tabs and windows using [postMessage](https://developer.mozilla.org/en-US/docs/Web/API/Window.postMessage). This doesn't work for certain flawed browsers. In these instances, it's recommended to always use `sameWindow` mode. If you are configured to use `newWindow` mode, you will most likely wish to handle this in the configuration. Eg:
 
-1. navigate from the client site to the API
-1. navigate from the API to the provider
-1. navigate from the provider to the API
-1. navigate from the API back to the client
-
-These steps are taken automatically when using this module with IE8+.
+```javascript
+      $authProvider.configure({
+        omniauthWindowType: isIE ? `sameWindow` : `newWindow`
+      })
+```
 
 ---
 
@@ -1338,7 +1355,7 @@ Just send a pull request. You will be granted commit access if you send quality 
 
 # Alternatives
 
-###[Satellizer](https://github.com/sahat/satellizer) 
+###[Satellizer](https://github.com/sahat/satellizer)
 
 Satellizer occupies the same problem domain as ng-token-auth. Advantages of ng-token-auth (at the time of this writing) include:
   * [Events](#events).
