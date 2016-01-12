@@ -845,9 +845,9 @@ angular.module('ng-token-auth', ['ipCookie'])
         else if resp.data.auth && resp.data.auth[key]
           newHeaders[key] = resp.data.auth[key]
 
-        # remove temporary auth data from the response body.
-        if (resp.data.auth)
-          delete resp.data.auth
+      # remove temporary auth data from the response body.
+      if (resp.data.auth)
+        delete resp.data.auth
 
       if tokenIsCurrent($auth, newHeaders)
         $auth.setAuthHeaders(newHeaders)
